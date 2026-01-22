@@ -1,0 +1,53 @@
+---
+- name: Create Sonarr config quadlet volume
+  containers.podman.podman_volume:
+    name: sonarr_config
+    state: quadlet
+  become_user: "{{ target_user }}"
+
+- name: Create Sonarr quadlet container
+  containers.podman.podman_container:
+    name: sonarr
+    image: ghcr.io/hotio/sonarr:latest
+    env:
+      PUID: "{{ container_puid }}"
+      PGID: "{{ container_pgid }}"
+      TZ: "{{ timezone }}"
+    state: quadlet
+    network:
+      - arr_network.network
+    ports:
+      - "8989:8989"
+    volumes:
+      - sonarr_config.volume:/config
+      - "{{ data_path }}:/data:z"
+    quadlet_options:
+      - "AutoUpdate=registry"
+      - |
+        [Service]
+        Restart=always
+      - |
+        [Install]
+        WantedBy=default.target
+  become_user: "{{ target_user }}"
+
+- name: Reload systemd for "{{ target_user }}"
+  systemd:
+    daemon_reload: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+- name: Ensure Sonarr service is started and enabled
+  ansible.builtin.systemd:
+    name: sonarr
+    state: started
+    enabled: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+# - name: Add Firewalld
+#   firewalld:
+#     port: 8989/tcp
+#     permanent: yes
+#     state: enabled
+#   notify: reload firewalld

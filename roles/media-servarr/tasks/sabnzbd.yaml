@@ -1,0 +1,55 @@
+---
+- name: Create Sabnzbd config quadlet volume
+  containers.podman.podman_volume:
+    name: sabnzbd_config
+    state: quadlet
+  become_user: "{{ target_user }}"
+
+- name: Create Sabnzbd quadlet container
+  containers.podman.podman_container:
+    name: sabnzbd
+    image: ghcr.io/hotio/sabnzbd:latest
+    env:
+      PUID: "{{ container_puid }}"
+      PGID: "{{ container_pgid }}"
+      TZ: "{{ timezone }}"
+      WEBUI_PORTS: "8080/tcp,8080/udp"
+      ARGS: ""
+    state: quadlet
+    network:
+      - arr_network.network
+    ports:
+      - "8081:8080"
+    volumes:
+      - sabnzbd_config.volume:/config
+      - "{{ data_path }}/usenet:/data:z"
+    quadlet_options:
+      - "AutoUpdate=registry"
+      - |
+        [Service]
+        Restart=always
+      - |
+        [Install]
+        WantedBy=default.target
+  become_user: "{{ target_user }}"
+
+- name: Reload systemd for "{{ target_user }}"
+  systemd:
+    daemon_reload: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+- name: Ensure Sabnzbd service is started and enabled
+  ansible.builtin.systemd:
+    name: sabnzbd
+    state: started
+    enabled: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+# - name: Add Firewalld
+#   firewalld:
+#     port: 8080/tcp
+#     permanent: yes
+#     state: enabled
+#   notify: reload firewalld

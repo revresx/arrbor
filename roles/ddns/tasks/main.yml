@@ -1,0 +1,31 @@
+---
+# tasks file for ddns
+
+- name: Fail if Zone ID is not set
+  ansible.builtin.fail:
+    msg: "ddns_zoneid is not set. Please define it in your playbook vars."
+  when: ddns_zoneid is not defined or ddns_zoneid | length == 0
+
+- name: Fail if API token is not set
+  ansible.builtin.fail:
+    msg: "ddns_cloudflare_zone_api_token is not set. Please define it in your playbook vars."
+  when: ddns_cloudflare_zone_api_token is not defined or ddns_cloudflare_zone_api_token | length == 0
+
+- name: Copy files to home
+  ansible.builtin.copy:
+    src: ./
+    dest: ~/ddns/
+    mode: '0744'
+
+- name: Render Cloudflare DDNS config from vars
+  ansible.builtin.template:
+    src: update-cloudflare-dns.conf.j2
+    dest: ~/ddns/update-cloudflare-dns.conf
+    mode: '0644'
+
+- name: Creat crontab to update ddns ip
+  ansible.builtin.cron:
+    name: Update DDNS-Entry Cloudflare
+    state: present
+    minute: "5"
+    job: "~/ddns/update-cloudflare-dns.sh update-cloudflare-dns.conf"

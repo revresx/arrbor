@@ -1,0 +1,71 @@
+---
+- name: Create group ""{{ target_user }}""
+  group:
+    name: "{{ target_user }}"
+    state: present
+
+- name: Create user ""{{ target_user }}""
+  user:
+    name: "{{ target_user }}"
+    state: present
+    group: "{{ target_user }}"
+    create_home: yes
+    shell: /bin/bash
+    home: "/home/{{ target_user }}"
+
+- name: Enable lingering for rootless services
+  command: "loginctl enable-linger {{ target_user }}"
+  args:
+    creates: "/var/lib/systemd/linger/{{ target_user }}"
+
+- name: Ensure Quadlet directory exists
+  file:
+    path: "/home/{{ target_user }}/.config/containers/systemd"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    mode: '0755'
+
+- name: Change Ownership of /data/storage on first run
+  ansible.builtin.file:
+    path: /data/storage
+    recurse: yes
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    state: directory
+  when: first_run | default(false) | bool
+
+- name: Change Ownership of /media for rootless
+  become_method: containers.podman.podman_unshare
+  become: true
+  become_user: "{{ target_user }}"
+  ansible.builtin.file:
+    path: /data/storage
+    recurse: yes
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+    state: directory
+
+- name: Create media and storage directories
+  become_user: "{{ target_user }}"
+  become_method: containers.podman.podman_unshare
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ target_user }}"
+    group: "{{ target_user }}"
+  loop:
+    - "/data/storage/media/movies"
+    - "/data/storage/media/tv"
+    - "/data/storage/usenet/movies"
+    - "/data/storage/usenet/tv"
+
+- name: Set SELinux contexts for container access
+  community.general.sefcontext:
+    target: "{{ item }}(/.*)?"
+    setype: container_file_t
+    state: present
+  loop:
+    - "/data/storage/media"
+    - "/data/storage/usenet"
+  notify: apply selinux context

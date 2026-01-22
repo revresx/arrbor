@@ -1,0 +1,25 @@
+---
+# tasks file for media-server
+- name: Server config
+  include_tasks: server-cfg.yaml
+
+- name: Configure Podman network
+  include_tasks: network.yaml
+
+- name: Setup Jellyfin
+  include_tasks: jellyfin.yaml
+
+- name: Setup Sonarr
+  include_tasks: sonarr.yaml
+
+- name: Setup Radarr
+  include_tasks: radarr.yaml
+
+- name: Setup Sabnzbd
+  include_tasks: sabnzbd.yaml
+
+- name: Setup Ombi
+  include_tasks: ombi.yaml
+
+- name: Setup Bunkerweb
+  include_tasks: bunkerweb.yaml

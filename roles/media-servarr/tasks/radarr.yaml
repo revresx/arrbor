@@ -1,0 +1,53 @@
+---
+- name: Create Radarr config qualet volume
+  containers.podman.podman_volume:
+    name: radarr_config
+    state: quadlet
+  become_user: "{{ target_user }}"
+
+- name: Create Radarr quadlet container
+  containers.podman.podman_container:
+    name: radarr
+    image: ghcr.io/hotio/radarr:latest
+    env:
+      PUID: "{{ container_puid }}"
+      PGID: "{{ container_pgid }}"
+      TZ: "{{ timezone }}"
+    state: quadlet
+    network:
+      - arr_network.network
+    ports:
+      - "7878:7878"
+    volumes:
+      - radarr_config.volume:/config
+      - "{{ data_path }}:/data:z"
+    quadlet_options:
+      - "AutoUpdate=registry"
+      - |
+        [Service]
+        Restart=always
+      - |
+        [Install]
+        WantedBy=default.target
+  become_user: "{{ target_user }}"
+
+- name: Reload systemd for "{{ target_user }}"
+  systemd:
+    daemon_reload: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+- name: Ensure Radarr service is started and enabled
+  ansible.builtin.systemd:
+    name: radarr
+    state: started
+    enabled: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+# - name: Add Firewalld
+#   firewalld:
+#     port: 7878/tcp
+#     permanent: yes
+#     state: enabled
+#   notify: reload firewalld

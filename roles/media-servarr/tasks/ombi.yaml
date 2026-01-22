@@ -1,0 +1,52 @@
+---
+- name: Create Ombi config quadlet volume
+  containers.podman.podman_volume:
+    name: ombi_config
+    state: quadlet
+  become_user: "{{ target_user }}"
+
+- name: Create Ombi quadlet container
+  containers.podman.podman_container:
+    name: ombi
+    image: lscr.io/linuxserver/ombi:latest
+    env:
+      PUID: "{{ container_puid }}"
+      PGID: "{{ container_pgid }}"
+      TZ: "{{ timezone }}"
+    state: quadlet
+    network:
+      - arr_network.network
+    ports:
+      - "3579:3579"
+    volumes:
+      - ombi_config.volume:/config
+    quadlet_options:
+      - "AutoUpdate=registry"
+      - |
+        [Service]
+        Restart=always
+      - |
+        [Install]
+        WantedBy=default.target
+  become_user: "{{ target_user }}"
+
+- name: Reload systemd for "{{ target_user }}"
+  systemd:
+    daemon_reload: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+- name: Ensure Ombi service is started and enabled
+  ansible.builtin.systemd:
+    name: ombi
+    state: started
+    enabled: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+# - name: Add Firewalld
+#   firewalld:
+#     port: 3579/tcp
+#     permanent: yes
+#     state: enabled
+#   notify: reload firewalld

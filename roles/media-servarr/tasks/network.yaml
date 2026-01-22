@@ -1,0 +1,25 @@
+---
+
+- name: Deploy internal network
+  containers.podman.podman_network:
+    name: arr_network
+    state: quadlet
+    quadlet_options:
+      - |
+        [Install]
+        WantedBy=default.target
+  become_user: "{{ target_user }}"
+
+- name: Reload systemd for "{{ target_user }}"
+  systemd:
+    daemon_reload: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+- name: Ensure Network is started and enabled
+  ansible.builtin.systemd:
+    name: arr_network-network
+    state: started
+    enabled: true
+    scope: user
+  become_user: "{{ target_user }}"

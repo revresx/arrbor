@@ -1,0 +1,30 @@
+---
+# ------------------- GENERAL SETTINGS -------------------
+# defaults file for media-servarr
+
+# Users under which the container will be deployed
+target_user: usarr
+
+# User and Group IDs for the media user
+container_puid: "1001"
+container_pgid: "1001"
+
+# Timezone for all containers
+timezone: "Europe/Zurich"
+
+# Base path for media and data storage
+data_path: "/media/arr"
+
+# Is maybe needed on first run to create the data folders, set to true for on run if you have permission issues
+first_run: false
+
+# -------------- CERTBOT SPECIFIC DEFAULTS --------------
+# Domain and cert report mail
+base_domain: "domain.local"
+cert_report_email: "email@domain.local"
+
+# -------------- BUNKERWEB SPECIFIC DEFAULTS --------------
+# Whitelisted IPs for Bunkerweb access
+bw_dns_resolvers: "10.89.0.1"
+bw_whitelist_ip: "10.89.0.0/24 127.0.0.1"
+bw_real_ip_from: "10.89.0.0/24 127.0.0.1"

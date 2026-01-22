@@ -1,0 +1,102 @@
+---
+- name: Create Bunkerweb data quadlet volume
+  containers.podman.podman_volume:
+    name: bunkerweb_data
+    state: quadlet
+  become_user: "{{ target_user }}"
+
+- name: Create Bunkerweb config quadlet volume
+  containers.podman.podman_volume:
+    name: bunkerweb_config
+    state: quadlet
+  become_user: "{{ target_user }}"
+
+- name: Build rendered BunkerWeb environment dictionary
+  set_fact:
+    bw_final_env: "{{ bw_final_env | default({}) | combine({ item.key : item.value }) }}"
+  with_items:
+    - { key: "PUID", value: "{{ container_puid }}" }
+    - { key: "PGID", value: "{{ container_pgid }}" }
+    - { key: "TZ", value: "{{ timezone }}" }
+    # General Settings
+    - { key: "MULTISITE", value: "yes" }
+    - { key: "USE_GZIP", value: "yes" }
+    - { key: "USE_BROTLI", value: "yes" }
+    - { key: "USE_REVERSE_PROXY", value: "yes" }
+    - { key: "DISABLE_DEFAULT_SERVER", value: "yes" }
+    - { key: "DNS_RESOLVERS", value: "{{ bw_dns_resolvers }}" }
+    - { key: "WHITELIST_IP", value: "{{ bw_whitelist_ip }}" }
+    - { key: "USE_REAL_IP", value: "yes" }
+    - { key: "REAL_IP_FROM", value: "{{ bw_real_ip_from }}" }
+    - { key: "REAL_IP_HEADER", value: "X-Forwarded-For" }
+    # Let's Encrypt Settings
+    - { key: "AUTO_LETS_ENCRYPT", value: "yes" }
+    - { key: "LETS_ENCRYPT_EMAIL", value: "{{ cert_report_email }}" }
+    # Site Settings
+    - { key: "SERVER_NAME", value: "jellyfin.{{ base_domain }} sonarr.{{ base_domain }} radarr.{{ base_domain }} nzb.{{ base_domain }} ombi.{{ base_domain }}" }
+    - { key: "jellyfin.{{ base_domain }}_REVERSE_PROXY_URL", value: "/" }
+    - { key: "jellyfin.{{ base_domain }}_REVERSE_PROXY_HOST", value: "http://jellyfin:8096" }
+    - { key: "sonarr.{{ base_domain }}_REVERSE_PROXY_URL", value: "/" }
+    - { key: "sonarr.{{ base_domain }}_REVERSE_PROXY_HOST", value: "http://sonarr:8989" }
+    - { key: "radarr.{{ base_domain }}_REVERSE_PROXY_URL", value: "/" }
+    - { key: "radarr.{{ base_domain }}_REVERSE_PROXY_HOST", value: "http://radarr:7878" }
+    - { key: "nzb.{{ base_domain }}_REVERSE_PROXY_URL", value: "/" }
+    - { key: "nzb.{{ base_domain }}_REVERSE_PROXY_HOST", value: "http://sabnzbd:8080" }
+    - { key: "ombi.{{ base_domain }}_REVERSE_PROXY_URL", value: "/" }
+    - { key: "ombi.{{ base_domain }}_REVERSE_PROXY_HOST", value: "http://ombi:3579" }
+
+- name: Create Bunkerweb quadlet container
+  containers.podman.podman_container:
+    name: bunkerweb
+    image: ghcr.io/bunkerity/bunkerweb-all-in-one:latest
+    state: quadlet
+    network:
+      - arr_network.network
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    volumes:
+      - bunkerweb_data.volume:/data
+      - bunkerweb_config.volume:/etc/nginx
+    env: "{{ bw_final_env }}"
+    quadlet_options:
+      - "AutoUpdate=registry"
+      - |
+        [Service]
+        Restart=always
+      - |
+        [Install]
+        WantedBy=default.target
+  become_user: "{{ target_user }}"
+
+- name: Reload systemd for "{{ target_user }}"
+  systemd:
+    daemon_reload: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+- name: Ensure Bunkerweb service is started and enabled
+  ansible.builtin.systemd:
+    name: bunkerweb
+    state: started
+    enabled: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+- name: Open public and high ports in firewall
+  firewalld:
+    port: "{{ item }}/tcp"
+    permanent: yes
+    state: enabled
+  loop: [80, 443]
+  notify: reload firewalld
+
+- name: Redirect port 80 and 443 to Bunkerweb high ports
+  ansible.posix.firewalld:
+    rich_rule: 'rule family="ipv4" forward-port port="{{ item.external }}" protocol="tcp" to-port="{{ item.internal }}"'
+    permanent: yes
+    state: enabled
+  loop:
+    - { external: 80, internal: 8080 }
+    - { external: 443, internal: 8443 }
+  notify: reload firewalld

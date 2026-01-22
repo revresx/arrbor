@@ -1,0 +1,55 @@
+---
+- name: Create Jellyfin quadlet volume
+  containers.podman.podman_volume:
+    name: jellyfin_config
+    state: quadlet
+  become_user: "{{ target_user }}"
+
+- name: Create Jellyfin quadlet container
+  containers.podman.podman_container:
+    name: jellyfin
+    image: ghcr.io/hotio/jellyfin:latest
+    env:
+      PUID: "{{ container_puid }}"
+      PGID: "{{ container_pgid }}"
+      TZ: "{{ timezone }}"
+    state: quadlet
+    network:
+      - arr_network.network
+    device: 
+      - /dev/dri:/dev/dri:rwm
+    ports:
+      - "8096:8096"
+    volumes:
+      - jellyfin_config.volume:/config
+      - "{{ data_path }}/media:/data:z"
+    quadlet_options:
+      - "AutoUpdate=registry"
+      - |
+        [Service]
+        Restart=always
+      - |
+        [Install]
+        WantedBy=default.target
+  become_user: "{{ target_user }}"
+
+- name: Reload systemd for "{{ target_user }}"
+  systemd:
+    daemon_reload: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+- name: Ensure Jellyfin service is started and enabled
+  ansible.builtin.systemd:
+    name: jellyfin
+    state: started
+    enabled: true
+    scope: user
+  become_user: "{{ target_user }}"
+
+# - name: Add Firewalld
+#   firewalld:
+#     port: 8096/tcp
+#     permanent: yes
+#     state: present
+#   notify: reload firewalld

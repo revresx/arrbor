@@ -1,0 +1,23 @@
+# handlers file for media-servarr
+- name: reload firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    state: reloaded
+  become: true
+
+- name: apply selinux context
+  ansible.builtin.command: restorecon -R /data
+  become: true
+
+- name: reload systemd user
+  ansible.builtin.systemd:
+    daemon_reload: yes
+    scope: user
+  become_user: "{{ target_user }}"
+
+- name: restart bunkerweb
+  ansible.builtin.systemd:
+    name: bunkerweb
+    state: restarted
+    scope: user
+  become_user: "{{ target_user }}"

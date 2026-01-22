@@ -1,0 +1,80 @@
+- hosts: localhost
+  become: true
+  
+  tasks:
+  ##install full fledge ansible via $sudo pip install ansible 
+  # - name: Install ansible
+  #   package:
+  #     name: ansible-core
+  #     state: latest
+
+  vars:
+
+    # -------------- DDNS ROLE VARIABLES --------------
+    # Vars for role ddns. Defaults can be found in:
+    # ./roles/ddns/defaults/main.yml
+
+    # Which IP should be used for the record: external/internal
+    # ddns_what_ip: ""
+
+    # DNS A record to be updated, you can separate multiple records by comma
+    # ddns_dns_record: ""
+
+    # Cloudflare's Zone ID, you can find this on the landing/overview page of your domain.
+    # REQUIRED
+    ddns_zoneid: ""
+
+    # Cloudflare Zone API Token
+    # REQUIRED
+    ddns_cloudflare_zone_api_token: ""
+
+    # Use Cloudflare proxy on dns record true/false
+    # ddns_proxied: ""
+
+    # 120-7200 in seconds or 1 for Auto
+    # ddns_ttl: 1
+
+    # Telegram Notifications yes/no (only sent if DNS is updated)
+    # ddns_notify_me_telegram: ""
+
+    # Telegram Chat ID
+    # ddns_telegram_chat_id: ""
+
+    # Telegram Bot API Key
+    # ddns_telegram_bot_API_Token: ""
+
+    # -------------- MEDIA-SERVARR ROLE VARIABLES --------------
+    # Vars for role media-servarr. Defaults can be found in:
+    # ./roles/media-servarr/defaults/main.yml
+
+    # Users under which the container will be deployed
+    # target_user: ""
+
+    # User and Group IDs for the media user
+    # container_puid: ""
+    # container_pgid: ""
+
+    # Timezone for all containers
+    # timezone: ""
+
+    # Base path for media and data storage
+    # data_path: ""
+
+    # Is maybe needed on first run to create the data folders, set to true for on run if you have permission issues
+    # first_run: false
+
+    # -------------- CERTBOT SPECIFIC DEFAULTS --------------
+    # Domain and cert report mail
+    # base_domain: "domain.local"
+    # cert_report_email: "email@domain.local"
+
+    # -------------- BUNKERWEB SPECIFIC DEFAULTS --------------
+    # Whitelisted IPs for Bunkerweb access
+    # bw_dns_resolvers: "10.89.0.1"
+    # bw_whitelist_ip: "10.89.0.0/24 127.0.0.1"
+    # bw_real_ip_from: "10.89.0.0/24 127.0.0.1"
+
+  roles:
+# Uncomment the ddns role if you want to deploy it
+#    - ddns
+    - media-servarr
