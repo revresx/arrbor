@@ -11,3 +11,9 @@ Make sure podman is installed
 ```bash
 dnf install podman
 ```
+
+## Installation
+Make sure you user has elevated priviledges. If sudo requieres password run `sudo ls` before running the playbook.
+```bash
+ansible-playbook arrbor-playbook.yaml
+```
